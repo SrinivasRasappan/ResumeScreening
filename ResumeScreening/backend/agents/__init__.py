@@ -1,4 +1,3 @@
-# Agents module
-from .gpt_agent import GPTAgent
+from .screening_agent import ResumeScreeningAgent
 
-__all__ = ["GPTAgent"]
+__all__ = ["ResumeScreeningAgent"]

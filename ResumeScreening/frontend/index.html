@@ -1,64 +1,179 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Agent Chat</title>
-    <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Resume Screening Agent</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
-
 <body>
-    <div class="container">
-        <header class="header">
-            <h1>AI Agent Chat</h1>
-            <p class="subtitle">Powered by OpenAI GPT</p>
-        </header>
 
-        <main class="main-content">
-            <!-- System Prompt Section -->
-            <section class="system-prompt-section">
-                <label for="systemPrompt">System Prompt (Optional):</label>
-                <textarea id="systemPrompt" placeholder="Enter a system prompt to guide the agent's behavior..."
-                    rows="3"></textarea>
-            </section>
+  <header class="header">
+    <div class="header-inner">
+      <div class="header-logo">
+        <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+          <rect width="36" height="36" rx="8" fill="white" fill-opacity="0.15"/>
+          <path d="M10 26L14 14l4 8 4-12 4 10" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>ResumeAI</span>
+      </div>
+      <div>
+        <h1>Resume Screening Agent</h1>
+        <p class="header-sub">Powered by Claude Opus — AI-driven candidate evaluation</p>
+      </div>
+    </div>
+  </header>
 
-            <!-- Chat Display Area -->
-            <section class="chat-section">
-                <div id="chatMessages" class="chat-messages">
-                    <div class="message system">
-                        <p>Welcome to AI Agent Chat! Start a conversation with the AI agent.</p>
-                    </div>
-                </div>
-            </section>
+  <main class="main">
 
-            <!-- Input Section -->
-            <section class="input-section">
-                <div class="input-group">
-                    <input type="text" id="messageInput" placeholder="Type your message here..." autocomplete="off">
-                    <button id="sendBtn" class="btn-send">Send</button>
-                </div>
-            </section>
+    <!-- ── INPUT PANEL ── -->
+    <section class="input-panel">
 
-            <!-- Controls Section -->
-            <section class="controls-section">
-                <button id="resetBtn" class="btn-reset">Clear History</button>
-                <button id="showHistoryBtn" class="btn-history">Show History</button>
-                <div id="status" class="status">Ready</div>
-            </section>
-        </main>
-
-        <!-- History Modal -->
-        <div id="historyModal" class="modal">
-            <div class="modal-content">
-                <span class="close">&times;</span>
-                <h2>Conversation History</h2>
-                <div id="historyList" class="history-list"></div>
-            </div>
+      <!-- Job Description -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-icon">📋</span>
+          <h2>Job Requirements</h2>
         </div>
+        <label class="field-label" for="jobTitle">Position Title</label>
+        <input id="jobTitle" class="field-input" type="text" placeholder="e.g. Senior Backend Engineer" />
+
+        <label class="field-label" for="jobDescription">Job Description &amp; Requirements</label>
+        <textarea id="jobDescription" class="field-textarea" rows="10"
+          placeholder="Paste the full job description here including required skills, qualifications, responsibilities…"></textarea>
+      </div>
+
+      <!-- Resume -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-icon">📄</span>
+          <h2>Candidate Resume</h2>
+        </div>
+
+        <div class="tabs">
+          <button class="tab active" data-tab="paste">Paste Text</button>
+          <button class="tab" data-tab="upload">Upload File</button>
+        </div>
+
+        <div id="tab-paste" class="tab-content active">
+          <textarea id="resumeText" class="field-textarea" rows="10"
+            placeholder="Paste the candidate's resume text here…"></textarea>
+        </div>
+
+        <div id="tab-upload" class="tab-content">
+          <div id="dropzone" class="dropzone">
+            <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+              <path d="M24 32V16M24 16L18 22M24 16L30 22" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M8 36a8 8 0 01-.34-16A12 12 0 0132 14.4 8 8 0 0140 36H8z" stroke="#94a3b8" stroke-width="2" stroke-linejoin="round"/>
+            </svg>
+            <p>Drag &amp; drop a PDF or TXT file here</p>
+            <p class="dropzone-sub">or</p>
+            <label class="btn-upload-label">
+              Browse File
+              <input id="resumeFile" type="file" accept=".pdf,.txt" hidden />
+            </label>
+            <p id="fileName" class="file-name"></p>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ── ANALYZE BUTTON ── -->
+    <div class="analyze-row">
+      <button id="analyzeBtn" class="btn-analyze">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <circle cx="10" cy="10" r="8" stroke="white" stroke-width="2"/>
+          <path d="M7 10l2 2 4-4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Analyze Resume
+      </button>
+      <div id="statusMsg" class="status-msg"></div>
     </div>
 
-    <script src="script.js"></script>
-</body>
+    <!-- ── RESULTS PANEL ── -->
+    <section id="results" class="results hidden">
 
+      <!-- Score + Recommendation -->
+      <div class="results-hero">
+
+        <div class="gauge-wrap">
+          <svg class="gauge-svg" viewBox="0 0 160 160">
+            <circle class="gauge-bg" cx="80" cy="80" r="65" />
+            <circle id="gaugeArc" class="gauge-arc" cx="80" cy="80" r="65"
+              stroke-dasharray="408.41" stroke-dashoffset="408.41" />
+          </svg>
+          <div class="gauge-label">
+            <span id="matchPct" class="gauge-pct">0%</span>
+            <span class="gauge-sub">Match</span>
+          </div>
+        </div>
+
+        <div class="hero-right">
+          <div id="recommendBadge" class="recommend-badge">—</div>
+          <p id="recommendReason" class="recommend-reason"></p>
+          <p id="overallSummary" class="overall-summary"></p>
+        </div>
+
+      </div>
+
+      <!-- AI Detection Banner -->
+      <div id="aiAlert" class="ai-alert hidden">
+        <div class="ai-alert-header">
+          <span class="ai-icon">🤖</span>
+          <strong>AI-Generated Resume Detected</strong>
+          <span id="aiConfBadge" class="ai-conf-badge"></span>
+        </div>
+        <p id="aiAlertSub" class="ai-alert-sub"></p>
+        <ul id="aiIndicators" class="ai-indicators"></ul>
+      </div>
+
+      <div id="aiClean" class="ai-clean hidden">
+        <span class="ai-icon">✅</span>
+        <strong>Resume appears human-written</strong>
+        <span id="aiCleanConf" class="ai-conf-badge ai-conf-clean"></span>
+      </div>
+
+      <!-- Requirements Grid -->
+      <div class="grid-2">
+        <div class="card result-card">
+          <div class="card-header">
+            <span class="card-icon matched-icon">✓</span>
+            <h3>Matched Requirements</h3>
+          </div>
+          <ul id="matchedList" class="result-list matched-list"></ul>
+        </div>
+        <div class="card result-card">
+          <div class="card-header">
+            <span class="card-icon missing-icon">✗</span>
+            <h3>Missing Requirements</h3>
+          </div>
+          <ul id="missingList" class="result-list missing-list"></ul>
+        </div>
+      </div>
+
+      <!-- Strengths & Concerns -->
+      <div class="grid-2">
+        <div class="card result-card">
+          <div class="card-header">
+            <span class="card-icon strength-icon">★</span>
+            <h3>Strengths</h3>
+          </div>
+          <ul id="strengthsList" class="result-list strengths-list"></ul>
+        </div>
+        <div class="card result-card">
+          <div class="card-header">
+            <span class="card-icon concern-icon">⚠</span>
+            <h3>Concerns</h3>
+          </div>
+          <ul id="concernsList" class="result-list concerns-list"></ul>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <script src="script.js"></script>
+</body>
 </html>

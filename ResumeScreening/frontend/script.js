@@ -1,204 +1,216 @@
-// Configuration
-const API_BASE_URL = 'http://localhost:8000';
-const API_ENDPOINTS = {
-    CHAT: `${API_BASE_URL}/chat`,
-    RESET: `${API_BASE_URL}/reset`,
-    HISTORY: `${API_BASE_URL}/history`,
-    HEALTH: `${API_BASE_URL}/health`
-};
+const API_BASE = 'http://localhost:8000';
 
-// DOM Elements
-const chatMessages = document.getElementById('chatMessages');
-const messageInput = document.getElementById('messageInput');
-const sendBtn = document.getElementById('sendBtn');
-const resetBtn = document.getElementById('resetBtn');
-const showHistoryBtn = document.getElementById('showHistoryBtn');
-const systemPromptInput = document.getElementById('systemPrompt');
-const statusIndicator = document.getElementById('status');
-const historyModal = document.getElementById('historyModal');
-const historyList = document.getElementById('historyList');
-const closeBtn = document.querySelector('.close');
+// ── DOM refs ──────────────────────────────────────────────
+const jobTitle       = document.getElementById('jobTitle');
+const jobDescription = document.getElementById('jobDescription');
+const resumeText     = document.getElementById('resumeText');
+const resumeFile     = document.getElementById('resumeFile');
+const fileName       = document.getElementById('fileName');
+const analyzeBtn     = document.getElementById('analyzeBtn');
+const statusMsg      = document.getElementById('statusMsg');
+const results        = document.getElementById('results');
+const dropzone       = document.getElementById('dropzone');
 
-// State
-let isLoading = false;
-let systemPromptSet = false;
+// Result elements
+const gaugeArc        = document.getElementById('gaugeArc');
+const matchPct        = document.getElementById('matchPct');
+const recommendBadge  = document.getElementById('recommendBadge');
+const recommendReason = document.getElementById('recommendReason');
+const overallSummary  = document.getElementById('overallSummary');
+const aiAlert         = document.getElementById('aiAlert');
+const aiConfBadge     = document.getElementById('aiConfBadge');
+const aiAlertSub      = document.getElementById('aiAlertSub');
+const aiIndicators    = document.getElementById('aiIndicators');
+const aiClean         = document.getElementById('aiClean');
+const aiCleanConf     = document.getElementById('aiCleanConf');
+const matchedList     = document.getElementById('matchedList');
+const missingList     = document.getElementById('missingList');
+const strengthsList   = document.getElementById('strengthsList');
+const concernsList    = document.getElementById('concernsList');
 
-// Event Listeners
-sendBtn.addEventListener('click', sendMessage);
-resetBtn.addEventListener('click', resetConversation);
-showHistoryBtn.addEventListener('click', showConversationHistory);
-messageInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter' && !isLoading) {
-        sendMessage();
-    }
-});
-closeBtn.addEventListener('click', () => {
-    historyModal.classList.remove('open');
-});
-window.addEventListener('click', (e) => {
-    if (e.target === historyModal) {
-        historyModal.classList.remove('open');
-    }
-});
-
-// Initialize
-document.addEventListener('DOMContentLoaded', () => {
-    checkApiHealth();
+// ── Tabs ──────────────────────────────────────────────────
+let activeTab = 'paste';
+document.querySelectorAll('.tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    activeTab = btn.dataset.tab;
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(`tab-${activeTab}`).classList.add('active');
+  });
 });
 
-// Functions
-async function checkApiHealth() {
-    try {
-        const response = await fetch(API_ENDPOINTS.HEALTH);
-        if (response.ok) {
-            const data = await response.json();
-            updateStatus(`Ready - Model: ${data.model}`, 'ready');
-        } else {
-            updateStatus('API Not Available', 'error');
-        }
-    } catch (error) {
-        console.error('Health check failed:', error);
-        updateStatus('API Not Available', 'error');
-    }
+// ── File upload ───────────────────────────────────────────
+resumeFile.addEventListener('change', () => {
+  const f = resumeFile.files[0];
+  fileName.textContent = f ? `Selected: ${f.name}` : '';
+});
+
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropzone.classList.remove('dragover');
+  const f = e.dataTransfer.files[0];
+  if (f) {
+    const dt = new DataTransfer();
+    dt.items.add(f);
+    resumeFile.files = dt.files;
+    fileName.textContent = `Selected: ${f.name}`;
+  }
+});
+
+// ── Analyze ───────────────────────────────────────────────
+analyzeBtn.addEventListener('click', analyze);
+
+async function analyze() {
+  const jd = jobDescription.value.trim();
+  if (!jd) { showStatus('Please enter a job description.', true); return; }
+
+  if (activeTab === 'paste') {
+    const rt = resumeText.value.trim();
+    if (!rt) { showStatus('Please paste the resume text.', true); return; }
+    await screenText(jd, rt);
+  } else {
+    const file = resumeFile.files[0];
+    if (!file) { showStatus('Please select a resume file.', true); return; }
+    await screenFile(jd, file);
+  }
 }
 
-async function sendMessage() {
-    const message = messageInput.value.trim();
-
-    if (!message) {
-        return;
+async function screenText(jd, rt) {
+  setLoading(true);
+  try {
+    const res = await fetch(`${API_BASE}/screen`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ job_description: jd, resume_text: rt }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || `Server error ${res.status}`);
     }
-
-    if (isLoading) {
-        return;
-    }
-
-    // Mark that system prompt has been set (if any)
-    if (systemPromptInput.value.trim() && !systemPromptSet) {
-        systemPromptSet = true;
-    }
-
-    // Add user message to chat
-    addMessageToChat(message, 'user');
-    messageInput.value = '';
-
-    isLoading = true;
-    updateStatus('Thinking...', 'loading');
-    sendBtn.disabled = true;
-
-    try {
-        const systemPrompt = systemPromptInput.value.trim() || null;
-
-        const response = await fetch(API_ENDPOINTS.CHAT, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                message: message,
-                system_prompt: systemPrompt
-            })
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        addMessageToChat(data.response, 'assistant');
-        updateStatus('Ready', 'ready');
-    } catch (error) {
-        console.error('Error:', error);
-        addMessageToChat(`Error: ${error.message}`, 'system');
-        updateStatus('Error sending message', 'error');
-    } finally {
-        isLoading = false;
-        sendBtn.disabled = false;
-    }
+    renderResults(await res.json());
+  } catch (e) {
+    showStatus(`Error: ${e.message}`, true);
+  } finally {
+    setLoading(false);
+  }
 }
 
-function addMessageToChat(message, role) {
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${role}`;
-
-    const messageP = document.createElement('p');
-    messageP.textContent = message;
-
-    messageDiv.appendChild(messageP);
-    chatMessages.appendChild(messageDiv);
-
-    // Scroll to bottom
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-}
-
-function updateStatus(text, type = 'ready') {
-    statusIndicator.textContent = text;
-    statusIndicator.className = 'status ' + type;
-}
-
-async function resetConversation() {
-    if (confirm('Are you sure you want to clear the conversation history?')) {
-        try {
-            const response = await fetch(API_ENDPOINTS.RESET, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    clear_history: true
-                })
-            });
-
-            if (response.ok) {
-                chatMessages.innerHTML = '';
-                addMessageToChat('Conversation cleared. Ready for a new chat!', 'system');
-                systemPromptSet = false;
-                updateStatus('Ready', 'ready');
-            }
-        } catch (error) {
-            console.error('Error resetting conversation:', error);
-            updateStatus('Error resetting conversation', 'error');
-        }
+async function screenFile(jd, file) {
+  setLoading(true);
+  try {
+    const fd = new FormData();
+    fd.append('job_description', jd);
+    fd.append('resume_file', file);
+    const res = await fetch(`${API_BASE}/screen/upload`, { method: 'POST', body: fd });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || `Server error ${res.status}`);
     }
+    renderResults(await res.json());
+  } catch (e) {
+    showStatus(`Error: ${e.message}`, true);
+  } finally {
+    setLoading(false);
+  }
 }
 
-async function showConversationHistory() {
-    try {
-        const response = await fetch(API_ENDPOINTS.HISTORY);
+// ── Render ────────────────────────────────────────────────
+function renderResults(data) {
+  // Gauge
+  const pct = Math.max(0, Math.min(100, data.match_percentage || 0));
+  const circumference = 2 * Math.PI * 65; // r=65
+  const offset = circumference * (1 - pct / 100);
 
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
+  gaugeArc.style.strokeDasharray  = circumference;
+  gaugeArc.style.strokeDashoffset = circumference; // start at 0
+  gaugeArc.classList.remove('green', 'yellow', 'red');
+  if (pct >= 75) gaugeArc.classList.add('green');
+  else if (pct >= 50) gaugeArc.classList.add('yellow');
+  else gaugeArc.classList.add('red');
 
-        const data = await response.json();
-        const history = data.history;
+  // Animate gauge after a tick
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      gaugeArc.style.strokeDashoffset = offset;
+    });
+  });
 
-        historyList.innerHTML = '';
+  // Animate counter
+  animateCounter(matchPct, 0, pct, 900);
 
-        if (history.length === 0) {
-            historyList.innerHTML = '<p style="color: #999;">No messages in history yet.</p>';
-        } else {
-            history.forEach(item => {
-                const historyItem = document.createElement('div');
-                historyItem.className = `history-item ${item.role}`;
+  // Recommendation
+  const rec = (data.recommendation || 'REVIEW').toUpperCase();
+  recommendBadge.textContent = rec;
+  recommendBadge.className = `recommend-badge ${rec}`;
+  recommendReason.textContent = data.recommendation_reason || '';
+  overallSummary.textContent  = data.overall_summary || '';
 
-                const roleDiv = document.createElement('div');
-                roleDiv.className = 'history-role';
-                roleDiv.textContent = item.role.charAt(0).toUpperCase() + item.role.slice(1);
+  // AI detection
+  const aiGen  = !!data.ai_generated;
+  const aiConf = data.ai_confidence || 0;
+  aiAlert.classList.add('hidden');
+  aiClean.classList.add('hidden');
 
-                const contentDiv = document.createElement('div');
-                contentDiv.className = 'history-content';
-                contentDiv.textContent = item.content;
+  if (aiGen) {
+    aiConfBadge.textContent = `${aiConf}% confidence`;
+    aiAlertSub.textContent  = `This resume shows strong signs of AI generation. Proceed with caution.`;
+    aiIndicators.innerHTML  = (data.ai_indicators || [])
+      .map(i => `<li>${escHtml(i)}</li>`).join('');
+    aiAlert.classList.remove('hidden');
+  } else {
+    aiCleanConf.textContent = `${100 - aiConf}% human confidence`;
+    aiClean.classList.remove('hidden');
+  }
 
-                historyItem.appendChild(roleDiv);
-                historyItem.appendChild(contentDiv);
-                historyList.appendChild(historyItem);
-            });
-        }
+  // Lists
+  renderList(matchedList,   data.matched_requirements || []);
+  renderList(missingList,   data.missing_requirements || []);
+  renderList(strengthsList, data.strengths || []);
+  renderList(concernsList,  data.concerns  || []);
 
-        historyModal.classList.add('open');
-    } catch (error) {
-        console.error('Error fetching history:', error);
-        updateStatus('Error fetching history', 'error');
-    }
+  // Show panel
+  results.classList.remove('hidden');
+  results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  showStatus('');
+}
+
+function renderList(el, items) {
+  el.innerHTML = items.length
+    ? items.map(i => `<li>${escHtml(i)}</li>`).join('')
+    : `<li style="opacity:.5">None identified</li>`;
+}
+
+function animateCounter(el, from, to, duration) {
+  const start = performance.now();
+  function step(now) {
+    const progress = Math.min((now - start) / duration, 1);
+    el.textContent = `${Math.round(from + (to - from) * easeOut(progress))}%`;
+    if (progress < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+
+// ── Helpers ───────────────────────────────────────────────
+function setLoading(on) {
+  analyzeBtn.disabled = on;
+  statusMsg.innerHTML = on
+    ? `<div class="spinner"></div> Analyzing resume with Claude Opus…`
+    : '';
+}
+
+function showStatus(msg, isError = false) {
+  statusMsg.innerHTML = msg;
+  statusMsg.style.color = isError ? '#dc2626' : '#64748b';
+}
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
