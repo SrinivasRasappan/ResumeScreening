@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Agent Chat</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>AI Agent Chat</h1>
+            <p class="subtitle">Powered by OpenAI GPT</p>
+        </header>
+
+        <main class="main-content">
+            <!-- System Prompt Section -->
+            <section class="system-prompt-section">
+                <label for="systemPrompt">System Prompt (Optional):</label>
+                <textarea id="systemPrompt" placeholder="Enter a system prompt to guide the agent's behavior..."
+                    rows="3"></textarea>
+            </section>
+
+            <!-- Chat Display Area -->
+            <section class="chat-section">
+                <div id="chatMessages" class="chat-messages">
+                    <div class="message system">
+                        <p>Welcome to AI Agent Chat! Start a conversation with the AI agent.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Input Section -->
+            <section class="input-section">
+                <div class="input-group">
+                    <input type="text" id="messageInput" placeholder="Type your message here..." autocomplete="off">
+                    <button id="sendBtn" class="btn-send">Send</button>
+                </div>
+            </section>
+
+            <!-- Controls Section -->
+            <section class="controls-section">
+                <button id="resetBtn" class="btn-reset">Clear History</button>
+                <button id="showHistoryBtn" class="btn-history">Show History</button>
+                <div id="status" class="status">Ready</div>
+            </section>
+        </main>
+
+        <!-- History Modal -->
+        <div id="historyModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>Conversation History</h2>
+                <div id="historyList" class="history-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
