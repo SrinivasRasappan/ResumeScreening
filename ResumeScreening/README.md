@@ -1,6 +1,6 @@
 # AI Agent Project
 
-A comprehensive AI Agent system that connects to OpenAI's GPT models with a Python backend and modern web client.
+A comprehensive AI Agent system that connects to Anthropic Claude models with a Python backend and modern web client.
 
 ## 📋 Project Structure
 
@@ -35,7 +35,7 @@ ResumeScreening/
 ## 📦 Prerequisites
 
 - Python 3.8+
-- OpenAI API Key
+- Anthropic API Key
 - Modern web browser
 
 ## 🔧 Setup Instructions
@@ -49,8 +49,10 @@ cd backend
 # Create a .env file from the template
 cp .env.example .env
 
-# Edit .env and add your OpenAI API key
-# OPENAI_API_KEY=sk-...
+# Edit .env and add your Anthropic API key
+# ANTHROPIC_API_KEY=sk-...
+# If you want to run locally without a key, enable dry-run mode:
+# DRY_RUN=true
 ```
 
 ### 2. Install Python Dependencies
@@ -127,7 +129,7 @@ GET /history
 
 Edit `backend/config/settings.py` to configure:
 
-- **Model**: Change GPT model (default: gpt-3.5-turbo)
+- **Model**: Change Claude model (default: claude-opus-4-6)
 - **Temperature**: Adjust response creativity (0-2)
 - **Server Host/Port**: Server configuration
 - **CORS Origins**: Allowed frontend URLs
@@ -137,7 +139,7 @@ Edit `backend/config/settings.py` to configure:
 Create a `.env` file in the backend directory:
 
 ```env
-OPENAI_API_KEY=your_api_key_here
+ANTHROPIC_API_KEY=your_api_key_here
 HOST=0.0.0.0
 PORT=8000
 DEBUG=True
@@ -198,8 +200,9 @@ The `GPTAgent` class provides:
 - Verify frontend URL is in `CORS_ORIGINS`
 
 ### Invalid API Key
-- Verify `OPENAI_API_KEY` in `.env` is correct
-- Get API key from https://platform.openai.com/api-keys
+- Verify `ANTHROPIC_API_KEY` in `.env` is correct
+- Get API key from https://console.anthropic.com/
+- Or set `DRY_RUN=true` in `.env` to run without a key (returns stub responses)
 
 ### CORS Errors
 - Frontend URL must be in `CORS_ORIGINS` list
@@ -211,9 +214,9 @@ The `GPTAgent` class provides:
 ### Backend
 - **fastapi**: Web framework
 - **uvicorn**: ASGI server
-- **openai**: OpenAI API client
+- **anthropic**: Claude API client
 - **pydantic**: Data validation
-- **langchain**: AI framework (optional, for advanced features)
+- **pdfplumber**: PDF parsing
 
 ### Frontend
 - Plain HTML5, CSS3, JavaScript (no dependencies)
@@ -240,4 +243,4 @@ For issues or questions:
 
 ---
 
-**Built with:** Python • FastAPI • OpenAI GPT • HTML5 • CSS3 • JavaScript
+**Built with:** Python • FastAPI • Anthropic Claude • HTML5 • CSS3 • JavaScript

@@ -1,13 +1,54 @@
 import json
+import random
+from typing import Any
+
 import anthropic
+
+from config.settings import settings
 
 
 class ResumeScreeningAgent:
     def __init__(self):
-        self.client = anthropic.Anthropic()
+        self.dry_run = settings.dry_run
         self.model = "claude-opus-4-6"
 
+        if not self.dry_run:
+            self.client = anthropic.Anthropic()
+        else:
+            self.client = None
+
+    def _dry_run_response(self, resume_text: str, job_description: str) -> dict[str, Any]:
+        # Simple deterministic stub response for UI testing without an API key.
+        base = {
+            "match_percentage": 65,
+            "matched_requirements": ["Communication", "Teamwork"],
+            "missing_requirements": ["Cloud Infrastructure", "Kubernetes"],
+            "strengths": [
+                "Clear, concise writing",
+                "Relevant experience in related domains",
+            ],
+            "concerns": [
+                "Limited hands-on experience with the exact tech stack",
+            ],
+            "recommendation": "REVIEW",
+            "recommendation_reason": "The candidate shows relevant skills but is missing key technical requirements.",
+            "ai_generated": False,
+            "ai_confidence": 25,
+            "ai_indicators": [],
+            "overall_summary": "The candidate has strong communication and domain experience but may need support on core infrastructure technologies.",
+        }
+
+        if "senior" in job_description.lower():
+            base["recommendation"] = "REVIEW"
+            base["recommendation_reason"] = "Role requires senior-level experience; candidate appears to be mid-level."
+            base["match_percentage"] = 55
+
+        return base
+
     def screen(self, resume_text: str, job_description: str) -> dict:
+        if self.dry_run:
+            return self._dry_run_response(resume_text, job_description)
+
         system_prompt = """You are an expert HR recruiter and resume screening specialist with 15+ years of experience. Analyze resumes against job descriptions and return a structured evaluation.
 
 Respond ONLY with a valid JSON object — no markdown, no extra text — containing exactly these fields:
